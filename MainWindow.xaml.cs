@@ -1,9 +1,11 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
@@ -73,6 +75,7 @@ public partial class MainWindow : Window
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                              "WindowsTerminal", "WebView2Cache"));
             await wv.EnsureCoreWebView2Async(env);
+            wv.DefaultBackgroundColor = System.Drawing.Color.FromArgb(255, 0x1E, 0x1E, 0x1E);
         }
         catch (Exception ex)
         {
@@ -586,6 +589,32 @@ public partial class MainWindow : Window
     // ─────────────────────────────────────────────────────────────────────────
     // WINDOW EVENTS
     // ─────────────────────────────────────────────────────────────────────────
+
+    // 修复启动白屏：
+    //   1. DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) — 告知 DWM 这是暗色窗口，
+    //      消除窗口弹出动画及合成阶段的白色初始填充；
+    //   2. HwndSource hook 拦截 WM_ERASEBKGND — 阻止 WPF DirectX 表面就绪前
+    //      Windows 用白色画刷擦除背景。
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int size);
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var hwnd = new WindowInteropHelper(this).Handle;
+
+        int dark = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+
+        HwndSource.FromHwnd(hwnd)?.AddHook(SuppressEraseBkgnd);
+    }
+
+    private static IntPtr SuppressEraseBkgnd(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == 0x0014) { handled = true; return new IntPtr(1); } // WM_ERASEBKGND
+        return IntPtr.Zero;
+    }
 
     protected override void OnClosed(EventArgs e)
     {

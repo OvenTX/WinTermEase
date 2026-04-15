@@ -6,6 +6,7 @@
         Title="Windows Terminal" Height="700" Width="1100"
         MinHeight="400" MinWidth="600"
         Background="#1E1E1E"
+        Icon="Assets/app.ico"
         WindowState="Normal">
 
     <Window.Resources>
