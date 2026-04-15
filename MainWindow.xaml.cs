@@ -99,6 +99,14 @@ public partial class MainWindow : Window
                         var rows = msg.GetProperty("rows").GetInt32();
                         tabVm.Resize(cols, rows);
                         break;
+                    case "paste_request":
+                        Dispatcher.Invoke(() =>
+                        {
+                            var text = Clipboard.GetText();
+                            if (!string.IsNullOrEmpty(text))
+                                tabVm.SendInput(text);
+                        });
+                        break;
                     case "ready":
                         // xterm.js 完成初始化并注册了 message 监听器，现在连接才安全
                         // 此时 SendToTerminal 已绑定，不会丢失数据
@@ -254,14 +262,14 @@ public partial class MainWindow : Window
 
     private void ShowNewSerialDialog()
     {
-        var dlg = new ConnectionDialog(ConnectionType.Serial) { Owner = this };
+        var dlg = new ConnectionDialog(ConnectionType.Serial, _vm.Config.ConnectionProfiles) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.Result != null)
             OpenNewTab(dlg.Result);
     }
 
     private void ShowNewSshDialog()
     {
-        var dlg = new ConnectionDialog(ConnectionType.SSH) { Owner = this };
+        var dlg = new ConnectionDialog(ConnectionType.SSH, _vm.Config.ConnectionProfiles) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.Result != null)
             OpenNewTab(dlg.Result);
     }

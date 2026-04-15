@@ -23,4 +23,12 @@ public class ConnectionProfile
     public string Password { get; set; } = "";
     public string PrivateKeyPath { get; set; } = "";
     public bool UsePrivateKey { get; set; } = false;
+
+    // Tracking
+    public DateTimeOffset? LastConnectedAt { get; set; }
+
+    /// <summary>Human-readable summary for UI lists (type tag + key params).</summary>
+    public string DisplaySummary => Type == ConnectionType.Serial
+        ? $"[串口] {PortName}  {BaudRate}  {DataBits}{Parity[0]}{StopBits.Replace("One","1").Replace("Two","2")}"
+        : $"[SSH] {Username}@{Host}:{Port}";
 }

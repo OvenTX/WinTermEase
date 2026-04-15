@@ -119,12 +119,32 @@ public class MainViewModel : INotifyPropertyChanged
         Tabs.Add(tab);
         ActiveTab = tab;
 
-        // 保存连接配置
-        if (!Config.ConnectionProfiles.Any(p => p.Id == profile.Id))
+        // 保存/更新连接配置，并记录最后连接时间
+        var existing = Config.ConnectionProfiles.FirstOrDefault(p => p.Id == profile.Id);
+        if (existing != null)
         {
-            Config.ConnectionProfiles.Add(profile);
-            SaveConfig();
+            // Update all fields (settings may have changed) and connection time
+            existing.Name = profile.Name;
+            existing.PortName = profile.PortName;
+            existing.BaudRate = profile.BaudRate;
+            existing.DataBits = profile.DataBits;
+            existing.Parity = profile.Parity;
+            existing.StopBits = profile.StopBits;
+            existing.Handshake = profile.Handshake;
+            existing.Host = profile.Host;
+            existing.Port = profile.Port;
+            existing.Username = profile.Username;
+            existing.Password = profile.Password;
+            existing.UsePrivateKey = profile.UsePrivateKey;
+            existing.PrivateKeyPath = profile.PrivateKeyPath;
+            existing.LastConnectedAt = DateTimeOffset.Now;
         }
+        else
+        {
+            profile.LastConnectedAt = DateTimeOffset.Now;
+            Config.ConnectionProfiles.Add(profile);
+        }
+        SaveConfig();
 
         // Connect() 由调用方 (MainWindow) 在绑定好 SendToTerminal 事件后手动调用
         return tab;

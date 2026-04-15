@@ -85,6 +85,20 @@
       postToHost({ type: 'input', data: data });
     });
 
+    // ─── Select-to-copy: auto-copy selected text ─────────────────────────────
+    term.onSelectionChange(() => {
+      if (term.hasSelection()) {
+        const sel = term.getSelection();
+        if (sel) navigator.clipboard.writeText(sel).catch(() => {});
+      }
+    });
+
+    // ─── Right-click to paste from clipboard ─────────────────────────────────
+    document.getElementById('terminal-container').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      postToHost({ type: 'paste_request' });
+    });
+
     // ─── C# host → xterm.js ─────────────────────────────────────────────────
     // Messages from C# are JSON strings posted via PostWebMessageAsString
     window.chrome.webview.addEventListener('message', e => {

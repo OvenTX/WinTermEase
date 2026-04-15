@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Win32;
 using WindowsTerminal.Models;
 using WindowsTerminal.Services;
@@ -12,7 +13,11 @@ public partial class ConnectionDialog : Window
     private static readonly int[] BaudRates =
         [300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000, 2000000];
 
-    public ConnectionDialog(ConnectionType initialType = ConnectionType.Serial)
+    // When loading from history this holds the original profile ID so we update instead of duplicate.
+    private string? _selectedProfileId;
+
+    public ConnectionDialog(ConnectionType initialType = ConnectionType.Serial,
+                            IReadOnlyList<ConnectionProfile>? recentProfiles = null)
     {
         InitializeComponent();
 
@@ -24,7 +29,6 @@ public partial class ConnectionDialog : Window
         CbBaud.ItemsSource = BaudRates;
         CbBaud.Text = "115200";
 
-        // Set defaults for other combos
         CbDataBits.SelectedIndex = 0;
         CbParity.SelectedIndex = 0;
         CbStopBits.SelectedIndex = 0;
@@ -34,6 +38,63 @@ public partial class ConnectionDialog : Window
         {
             RbSsh.IsChecked = true;
             RbSerial.IsChecked = false;
+        }
+
+        // Populate history ComboBox — show all types, most recent first
+        var recent = recentProfiles?
+            .Where(p => p.LastConnectedAt.HasValue)
+            .OrderByDescending(p => p.LastConnectedAt)
+            .ToList() ?? [];
+
+        if (recent.Count > 0)
+        {
+            CbRecent.ItemsSource = recent;
+        }
+        else
+        {
+            TxtHistoryHint.Visibility = Visibility.Visible;
+            CbRecent.IsEnabled = false;
+        }
+    }
+
+    private void CbRecent_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CbRecent.SelectedItem is not ConnectionProfile p) return;
+
+        _selectedProfileId = p.Id;
+        TxtName.Text = p.Name;
+
+        if (p.Type == ConnectionType.Serial)
+        {
+            RbSerial.IsChecked = true;
+            CbPort.Text = p.PortName;
+            CbBaud.Text = p.BaudRate.ToString();
+            SelectComboByContent(CbDataBits, p.DataBits.ToString());
+            SelectComboByContent(CbParity, p.Parity);
+            SelectComboByContent(CbStopBits, p.StopBits);
+            SelectComboByContent(CbHandshake, p.Handshake);
+        }
+        else
+        {
+            RbSsh.IsChecked = true;
+            TxtHost.Text = p.Host;
+            TxtSshPort.Text = p.Port.ToString();
+            TxtUser.Text = p.Username;
+            PbPassword.Password = p.Password;
+            ChkUseKey.IsChecked = p.UsePrivateKey;
+            TxtKeyPath.Text = p.PrivateKeyPath;
+        }
+    }
+
+    private static void SelectComboByContent(ComboBox cb, string value)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+        {
+            if (item.Content?.ToString() == value)
+            {
+                cb.SelectedItem = item;
+                return;
+            }
         }
     }
 
@@ -68,7 +129,6 @@ public partial class ConnectionDialog : Window
                 MessageBox.Show("请选择串口", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            // 直接从 CbBaud.Text 读取波特率（兼容下拉选择和手动输入两种情况）
             if (!int.TryParse(CbBaud.Text, out var baud) || baud <= 0)
             {
                 MessageBox.Show("请输入有效的波特率", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -76,14 +136,15 @@ public partial class ConnectionDialog : Window
             }
             Result = new ConnectionProfile
             {
+                Id = _selectedProfileId ?? Guid.NewGuid().ToString(),
                 Name = TxtName.Text.Trim().Length > 0 ? TxtName.Text.Trim() : CbPort.Text,
                 Type = ConnectionType.Serial,
                 PortName = CbPort.Text.Trim(),
                 BaudRate = baud,
-                DataBits = int.Parse(((System.Windows.Controls.ComboBoxItem)CbDataBits.SelectedItem).Content.ToString()!),
-                Parity = ((System.Windows.Controls.ComboBoxItem)CbParity.SelectedItem).Content.ToString()!,
-                StopBits = ((System.Windows.Controls.ComboBoxItem)CbStopBits.SelectedItem).Content.ToString()!,
-                Handshake = ((System.Windows.Controls.ComboBoxItem)CbHandshake.SelectedItem).Content.ToString()!,
+                DataBits = int.Parse(((ComboBoxItem)CbDataBits.SelectedItem).Content.ToString()!),
+                Parity = ((ComboBoxItem)CbParity.SelectedItem).Content.ToString()!,
+                StopBits = ((ComboBoxItem)CbStopBits.SelectedItem).Content.ToString()!,
+                Handshake = ((ComboBoxItem)CbHandshake.SelectedItem).Content.ToString()!,
             };
         }
         else
@@ -95,6 +156,7 @@ public partial class ConnectionDialog : Window
             }
             Result = new ConnectionProfile
             {
+                Id = _selectedProfileId ?? Guid.NewGuid().ToString(),
                 Name = TxtName.Text.Trim().Length > 0 ? TxtName.Text.Trim() : $"{TxtUser.Text}@{TxtHost.Text}",
                 Type = ConnectionType.SSH,
                 Host = TxtHost.Text.Trim(),
