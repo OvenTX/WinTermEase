@@ -139,6 +139,8 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             DockPanel.Dock="Right">
+                    <Button Content="保存日志" Style="{StaticResource DarkButton}" Padding="8,4"
+                            Click="BtnSaveLog_Click" Margin="0,0,6,0"/>
                     <Button x:Name="BtnToggleQuickBar" Content="快捷栏 ▾"
                             Style="{StaticResource DarkButton}" Padding="8,4"
                             Click="BtnToggleQuickBar_Click"/>
@@ -191,38 +193,20 @@
                     <TextBlock DockPanel.Dock="Left" Text="指令："
                                Foreground="#555555" VerticalAlignment="Center"
                                FontSize="11" Margin="0,0,4,0"/>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="QuickCommandsPanel" ItemsSource="{Binding FilteredQuickCommands}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Style="{StaticResource QuickCmdButton}"
-                                            Content="{Binding Name}"
-                                            ToolTip="{Binding Command, Converter={StaticResource CmdDisplayConverter}}"
-                                            Tag="{Binding}"
-                                            Command="{Binding DataContext.SendQuickCommandCommand,
-                                                      RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="发送" Tag="{Binding}"
-                                                          Click="QuickCmd_Send_Click"/>
-                                                <MenuItem Header="编辑" Tag="{Binding}"
-                                                          Click="QuickCmd_Edit_Click"/>
-                                                <Separator/>
-                                                <MenuItem Header="删除" Tag="{Binding}"
-                                                          Click="QuickCmd_Delete_Click"/>
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Container clips overflow; StackPanel filled by code-behind -->
+                    <Grid x:Name="QuickCmdContainerGrid" ClipToBounds="True"
+                          SizeChanged="QuickCmdArea_SizeChanged">
+                        <StackPanel x:Name="QuickCmdStrip" Orientation="Horizontal"
+                                    VerticalAlignment="Center"/>
+                        <!-- "···" overflow button — overlay at right edge, does NOT affect container width -->
+                        <Button x:Name="BtnMoreCmds"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Content="···" Width="28" Height="22"
+                                Style="{StaticResource DarkButton}"
+                                Visibility="Collapsed"
+                                Click="BtnMoreCmds_Click"
+                                ToolTip="更多指令" FontSize="14"/>
+                    </Grid>
                 </DockPanel>
 
             </StackPanel>

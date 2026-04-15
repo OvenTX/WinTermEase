@@ -29,6 +29,9 @@ public class TerminalTabViewModel : INotifyPropertyChanged, IDisposable
     private long _rxBytes;
     private long _txBytes;
 
+    // Accumulated raw text for log saving (pre-ANSI, from session start)
+    private readonly StringBuilder _logBuffer = new();
+
     public string Id { get; } = Guid.NewGuid().ToString();
     public ConnectionProfile Profile { get; }
     public ConnectionType ConnectionType => Profile.Type;
@@ -152,6 +155,11 @@ public class TerminalTabViewModel : INotifyPropertyChanged, IDisposable
 
     private void OnDataReceived(byte[] data)
     {
+        // Accumulate raw text in log buffer (before any ANSI injection)
+        _logBuffer.Append(Profile.Type == ConnectionType.Serial
+            ? Encoding.Latin1.GetString(data)
+            : Encoding.UTF8.GetString(data));
+
         var processed = Profile.Type == ConnectionType.Serial ? HighlightSerialData(data) : data;
         var b64 = Convert.ToBase64String(processed);
         SendToTerminal?.Invoke(b64);
@@ -164,6 +172,9 @@ public class TerminalTabViewModel : INotifyPropertyChanged, IDisposable
                 : _ssh?.RxBytes ?? 0;
         });
     }
+
+    /// <summary>Returns all received text since the tab was opened (raw, no ANSI codes).</summary>
+    public string GetLogContent() => _logBuffer.ToString();
 
     /// <summary>
     /// Injects ANSI color codes around error/warning keywords in serial output.

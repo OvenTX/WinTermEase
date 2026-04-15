@@ -1,10 +1,14 @@
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using Microsoft.Win32;
+using WindowsTerminal.Converters;
 using WindowsTerminal.Models;
 using WindowsTerminal.ViewModels;
 using WindowsTerminal.Views;
@@ -15,30 +19,40 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm = new();
 
-    // Maps tab ID → its WebView2 control
     private readonly Dictionary<string, WebView2> _webViews = [];
-    // Maps tab ID → its tab header button
     private readonly Dictionary<string, Button> _tabButtons = [];
 
     private static readonly string AssetsDir =
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+
+    // Quick command overflow state
+    private readonly List<QuickCommand> _overflowCmds = [];
+    private readonly Dictionary<Button, double> _btnWidths = new();
+    private Popup? _overflowPopup;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = _vm;
 
-        // Wire up ViewModel events
         _vm.RequestNewSerial += ShowNewSerialDialog;
         _vm.RequestNewSsh += ShowNewSshDialog;
         _vm.RequestAddQuickCommand += ShowAddQuickCommandDialog;
         _vm.RequestEditQuickCommand += ShowEditQuickCommandDialog;
 
-        // Refresh group filter buttons whenever quick commands change
-        _vm.QuickCommands.CollectionChanged += (s, e) => RefreshGroupButtons();
-        RefreshGroupButtons();
+        // Refresh group buttons + command strip whenever the filtered set changes
+        _vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == "FilteredQuickCommands")
+            {
+                Dispatcher.Invoke(RefreshGroupButtons);
+                Dispatcher.Invoke(RefreshQuickCommandButtons);
+            }
+        };
 
-        // Initial hint visibility
+        RefreshGroupButtons();
+        RefreshQuickCommandButtons();
+
         NoTabHint.Visibility = Visibility.Visible;
     }
 
@@ -50,13 +64,11 @@ public partial class MainWindow : Window
     {
         var tabVm = _vm.OpenTab(profile);
 
-        // Create WebView2
         var wv = new WebView2 { Visibility = Visibility.Collapsed };
         TerminalArea.Children.Add(wv);
 
         try
         {
-            // Initialize WebView2 environment
             var env = await CoreWebView2Environment.CreateAsync(null,
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                              "WindowsTerminal", "WebView2Cache"));
@@ -71,21 +83,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Serve local assets via virtual host
         wv.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "terminal.local", AssetsDir,
             CoreWebView2HostResourceAccessKind.Allow);
 
-        // Suppress context menu in terminal
         wv.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         wv.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
-        // Wire up messages: xterm.js → C#
         wv.CoreWebView2.WebMessageReceived += (s, e) =>
         {
             try
             {
-                // JS 用 postMessage(obj) 发送时，WebMessageAsJson 就是对象的 JSON 表示
                 var msg = JsonSerializer.Deserialize<JsonElement>(e.WebMessageAsJson);
                 var type = msg.GetProperty("type").GetString();
                 switch (type)
@@ -108,18 +116,14 @@ public partial class MainWindow : Window
                         });
                         break;
                     case "ready":
-                        // xterm.js 完成初始化并注册了 message 监听器，现在连接才安全
-                        // 此时 SendToTerminal 已绑定，不会丢失数据
                         if (tabVm.State == TabState.Disconnected)
                             tabVm.Connect();
                         break;
                 }
             }
-            catch { /* ignore malformed messages */ }
+            catch { }
         };
 
-        // Wire up: C# → xterm.js (data from serial/SSH)
-        // 必须在 Connect() 之前绑定，否则连接建立后收到的早期数据会因 SendToTerminal==null 被丢弃
         tabVm.SendToTerminal += b64 =>
         {
             Dispatcher.BeginInvoke(() =>
@@ -134,20 +138,13 @@ public partial class MainWindow : Window
         };
 
         _webViews[tabVm.Id] = wv;
-
-        // 加载终端页面（加载完成后 xterm.js 发送 "ready" 消息触发 Connect）
         wv.Source = new Uri("https://terminal.local/terminal.html");
-
-        // 创建标签头
         CreateTabHeader(tabVm);
-
-        // 激活标签（显示 WebView2，焦点到终端）
         ActivateTab(tabVm);
     }
 
     private void CreateTabHeader(TerminalTabViewModel tabVm)
     {
-        // Container: tab label + close button
         var icon = tabVm.ConnectionType == ConnectionType.Serial ? "⚡" : "🔒";
 
         var label = new TextBlock
@@ -159,7 +156,6 @@ public partial class MainWindow : Window
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
 
-        // Update label when title/state changes
         tabVm.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(TerminalTabViewModel.Title))
@@ -168,10 +164,10 @@ public partial class MainWindow : Window
                 Dispatcher.Invoke(() =>
                     label.Foreground = tabVm.State switch
                     {
-                        TabState.Connected => Brushes.White,
-                        TabState.Connecting => Brushes.Yellow,
-                        TabState.Error => Brushes.OrangeRed,
-                        _ => new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99))
+                        TabState.Connected   => Brushes.White,
+                        TabState.Connecting  => Brushes.Yellow,
+                        TabState.Error       => Brushes.OrangeRed,
+                        _                    => new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99))
                     });
         };
 
@@ -187,11 +183,7 @@ public partial class MainWindow : Window
             FontSize = 10,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        closeBtn.Click += (s, e) =>
-        {
-            e.Handled = true;
-            CloseTab(tabVm);
-        };
+        closeBtn.Click += (s, e) => { e.Handled = true; CloseTab(tabVm); };
 
         var headerContent = new StackPanel { Orientation = Orientation.Horizontal };
         headerContent.Children.Add(label);
@@ -213,11 +205,9 @@ public partial class MainWindow : Window
     {
         _vm.ActiveTab = tabVm;
 
-        // Show/hide WebView2 instances
         foreach (var (id, wv) in _webViews)
             wv.Visibility = id == tabVm.Id ? Visibility.Visible : Visibility.Collapsed;
 
-        // Update tab button styles
         foreach (var (id, btn) in _tabButtons)
             btn.Style = id == tabVm.Id
                 ? (Style)Resources["ActiveTabHeaderButton"]
@@ -225,14 +215,12 @@ public partial class MainWindow : Window
 
         NoTabHint.Visibility = Visibility.Collapsed;
 
-        // Focus the WebView2 so keyboard input works immediately
         if (_webViews.TryGetValue(tabVm.Id, out var active))
             active.Focus();
     }
 
     private void CloseTab(TerminalTabViewModel tabVm)
     {
-        // Remove WebView2
         if (_webViews.TryGetValue(tabVm.Id, out var wv))
         {
             TerminalArea.Children.Remove(wv);
@@ -240,7 +228,6 @@ public partial class MainWindow : Window
             _webViews.Remove(tabVm.Id);
         }
 
-        // Remove header
         if (_tabButtons.TryGetValue(tabVm.Id, out var btn))
         {
             TabStrip.Children.Remove(btn);
@@ -249,7 +236,6 @@ public partial class MainWindow : Window
 
         _vm.CloseTab(tabVm);
 
-        // Activate last remaining tab
         if (_vm.Tabs.Count > 0)
             ActivateTab(_vm.Tabs[^1]);
         else
@@ -297,7 +283,7 @@ public partial class MainWindow : Window
         GroupFilterPanel.Children.Clear();
         foreach (var group in _vm.GetAvailableGroups())
         {
-            var g = group; // capture for lambda
+            var g = group;
             var btn = new Button
             {
                 Content = g,
@@ -312,6 +298,191 @@ public partial class MainWindow : Window
             };
             GroupFilterPanel.Children.Add(btn);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // QUICK COMMAND STRIP (code-behind, supports overflow "···" button)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void RefreshQuickCommandButtons()
+    {
+        QuickCmdStrip.Children.Clear();
+        _overflowCmds.Clear();
+        BtnMoreCmds.Visibility = Visibility.Collapsed;
+
+        var conv = (CommandDisplayConverter)Resources["CmdDisplayConverter"];
+
+        foreach (var qc in _vm.FilteredQuickCommands)
+        {
+            var qcRef = qc;
+            var btn = new Button
+            {
+                Content = qc.Name,
+                Style = (Style)Resources["QuickCmdButton"],
+                ToolTip = conv.Convert(qc.Command, typeof(string), null!,
+                              System.Globalization.CultureInfo.CurrentCulture),
+                Tag = qc,
+            };
+            btn.Click += (s, e) => _vm.SendQuickCommandCommand.Execute(qcRef);
+
+            // Per-button context menu
+            var cm = new ContextMenu();
+            var miSend   = new MenuItem { Header = "发送",  Tag = qcRef };
+            var miEdit   = new MenuItem { Header = "编辑",  Tag = qcRef };
+            var miDelete = new MenuItem { Header = "删除",  Tag = qcRef };
+            miSend.Click   += QuickCmd_Send_Click;
+            miEdit.Click   += QuickCmd_Edit_Click;
+            miDelete.Click += QuickCmd_Delete_Click;
+            cm.Items.Add(miSend);
+            cm.Items.Add(miEdit);
+            cm.Items.Add(new Separator());
+            cm.Items.Add(miDelete);
+            btn.ContextMenu = cm;
+
+            QuickCmdStrip.Children.Add(btn);
+        }
+
+        // Measure rendered widths after layout, then check overflow
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+            (Action)ReadWidthsThenCheckOverflow);
+    }
+
+    private void ReadWidthsThenCheckOverflow()
+    {
+        // Make all buttons visible so WPF measures their true widths
+        var buttons = QuickCmdStrip.Children.OfType<Button>().ToList();
+        foreach (var b in buttons) b.Visibility = Visibility.Visible;
+
+        // Read ActualWidth for each button now that they're rendered
+        _btnWidths.Clear();
+        foreach (var b in buttons)
+            _btnWidths[b] = b.ActualWidth;
+
+        CheckQuickCmdOverflow();
+    }
+
+    private void CheckQuickCmdOverflow()
+    {
+        double containerW = QuickCmdContainerGrid.ActualWidth;
+        if (containerW <= 0) return;
+
+        const double moreBtnW = 32; // reserved width for the "···" button
+
+        var buttons = QuickCmdStrip.Children.OfType<Button>().ToList();
+
+        double totalW = buttons.Sum(b => _btnWidths.GetValueOrDefault(b, 0));
+
+        if (totalW <= containerW)
+        {
+            // All fit — show everything, hide "···"
+            foreach (var b in buttons) b.Visibility = Visibility.Visible;
+            BtnMoreCmds.Visibility = Visibility.Collapsed;
+            _overflowCmds.Clear();
+            return;
+        }
+
+        // Some overflow — fit as many as possible, reserve space for "···"
+        _overflowCmds.Clear();
+        double usedW = 0;
+        bool overflowing = false;
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            double w = _btnWidths.GetValueOrDefault(buttons[i], 0);
+            if (!overflowing && usedW + w + moreBtnW <= containerW)
+            {
+                buttons[i].Visibility = Visibility.Visible;
+                usedW += w;
+            }
+            else
+            {
+                overflowing = true;
+                buttons[i].Visibility = Visibility.Collapsed;
+                if (buttons[i].Tag is QuickCommand qc)
+                    _overflowCmds.Add(qc);
+            }
+        }
+
+        BtnMoreCmds.Visibility = Visibility.Visible;
+    }
+
+    private void QuickCmdArea_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        CheckQuickCmdOverflow();
+    }
+
+    private void BtnMoreCmds_Click(object sender, RoutedEventArgs e)
+    {
+        if (_overflowPopup?.IsOpen == true)
+        {
+            _overflowPopup.IsOpen = false;
+            return;
+        }
+
+        var conv = (CommandDisplayConverter)Resources["CmdDisplayConverter"];
+        var wrap = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(4),
+            MaxWidth = 420,
+        };
+
+        foreach (var qc in _overflowCmds)
+        {
+            var qcRef = qc;
+            var btn = new Button
+            {
+                Content = qc.Name,
+                Style = (Style)Resources["QuickCmdButton"],
+                ToolTip = conv.Convert(qc.Command, typeof(string), null!,
+                              System.Globalization.CultureInfo.CurrentCulture),
+                Tag = qc,
+            };
+            btn.Click += (s, ev) =>
+            {
+                _vm.SendQuickCommandCommand.Execute(qcRef);
+                _overflowPopup!.IsOpen = false;
+            };
+
+            var cm = new ContextMenu();
+            var miSend   = new MenuItem { Header = "发送",  Tag = qcRef };
+            var miEdit   = new MenuItem { Header = "编辑",  Tag = qcRef };
+            var miDelete = new MenuItem { Header = "删除",  Tag = qcRef };
+            miSend.Click   += QuickCmd_Send_Click;
+            miEdit.Click   += (s, ev) => { ShowEditQuickCommandDialog(qcRef); _overflowPopup!.IsOpen = false; };
+            miDelete.Click += QuickCmd_Delete_Click;
+            cm.Items.Add(miSend);
+            cm.Items.Add(miEdit);
+            cm.Items.Add(new Separator());
+            cm.Items.Add(miDelete);
+            btn.ContextMenu = cm;
+
+            wrap.Children.Add(btn);
+        }
+
+        _overflowPopup = new Popup
+        {
+            Child = new Border
+            {
+                Background    = new SolidColorBrush(Color.FromRgb(0x2D, 0x2D, 0x30)),
+                BorderBrush   = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                BorderThickness = new Thickness(1),
+                CornerRadius  = new CornerRadius(4),
+                Child = new ScrollViewer
+                {
+                    MaxHeight = 280,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+                    Content = wrap,
+                },
+            },
+            PlacementTarget  = BtnMoreCmds,
+            Placement        = PlacementMode.Top,
+            StaysOpen        = false,
+            AllowsTransparency = true,
+            PopupAnimation   = PopupAnimation.Slide,
+        };
+        _overflowPopup.IsOpen = true;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -337,6 +508,41 @@ public partial class MainWindow : Window
             if (MessageBox.Show($"删除快捷指令「{qc.Name}」?", "确认",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 _vm.DeleteQuickCommandCommand.Execute(qc);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SAVE LOG
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void BtnSaveLog_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = _vm.ActiveTab;
+        if (tab == null)
+        {
+            MessageBox.Show("没有活动的终端窗口。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var content = tab.GetLogContent();
+        if (string.IsNullOrEmpty(content))
+        {
+            MessageBox.Show("当前窗口暂无可保存的内容。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Title       = "保存终端日志",
+            FileName    = $"{tab.Title}_{DateTime.Now:yyyyMMdd_HHmmss}.log",
+            Filter      = "日志文件 (*.log)|*.log|文本文件 (*.txt)|*.txt|所有文件|*.*",
+            DefaultExt  = "log",
+            AddExtension = true,
+        };
+
+        if (dlg.ShowDialog(this) == true)
+        {
+            File.WriteAllText(dlg.FileName, content, Encoding.UTF8);
         }
     }
 
