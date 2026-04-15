@@ -111,8 +111,31 @@ public partial class MainWindow : Window
                         Dispatcher.Invoke(() =>
                         {
                             var text = Clipboard.GetText();
-                            if (!string.IsNullOrEmpty(text))
-                                tabVm.SendInput(text);
+                            if (string.IsNullOrEmpty(text)) return;
+
+                            // Count non-empty lines
+                            var lines = text.Split('\n');
+                            int lineCount = lines.Count(l => l.TrimEnd('\r').Length > 0);
+
+                            if (lineCount > 1)
+                            {
+                                // Build preview: first 3 lines, truncate long lines
+                                var preview = string.Join("\n", lines.Take(3)
+                                    .Select(l => l.TrimEnd('\r'))
+                                    .Select(l => l.Length > 60 ? l[..60] + "…" : l));
+                                if (lines.Length > 3) preview += "\n…";
+
+                                var result = MessageBox.Show(
+                                    $"即将粘贴 {lineCount} 行内容：\n\n{preview}\n\n确认粘贴？",
+                                    "多行粘贴确认",
+                                    MessageBoxButton.YesNo,
+                                    MessageBoxImage.Question,
+                                    MessageBoxResult.No);
+
+                                if (result != MessageBoxResult.Yes) return;
+                            }
+
+                            tabVm.SendInput(text);
                         });
                         break;
                     case "ready":
