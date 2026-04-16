@@ -64,7 +64,11 @@ public partial class MainWindow : Window
     {
         var tabVm = _vm.OpenTab(profile);
 
-        var wv = new WebView2 { Visibility = Visibility.Collapsed };
+        var wv = new WebView2
+        {
+            Visibility = Visibility.Collapsed,
+            DefaultBackgroundColor = System.Drawing.Color.FromArgb(255, 30, 30, 30),
+        };
         TerminalArea.Children.Add(wv);
 
         try
