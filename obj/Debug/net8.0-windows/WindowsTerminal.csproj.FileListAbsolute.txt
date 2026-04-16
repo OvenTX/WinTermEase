@@ -48,4 +48,3 @@ F:\Code\github\WindowsTerminal\obj\Debug\net8.0-windows\WindowsTerminal.genrunti
 F:\Code\github\WindowsTerminal\obj\Debug\net8.0-windows\ref\WindowsTerminal.dll
 F:\Code\github\WindowsTerminal\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
 F:\Code\github\WindowsTerminal\obj\Debug\net8.0-windows\WindowsTerminal.sourcelink.json
-F:\Code\github\WindowsTerminal\bin\Debug\net8.0-windows\Assets\app.ico
