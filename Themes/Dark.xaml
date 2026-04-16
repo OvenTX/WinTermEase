@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ── Semantic brushes (referenced by styles) ── -->
+    <SolidColorBrush x:Key="AppBgBrush"           Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="AppPanelBrush"        Color="#2D2D30"/>
+    <SolidColorBrush x:Key="AppPanel2Brush"       Color="#252526"/>
+    <SolidColorBrush x:Key="AppBorderBrush"       Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="AppFgBrush"           Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="AppSubtleFgBrush"     Color="#999999"/>
+    <SolidColorBrush x:Key="AppDimFgBrush"        Color="#555555"/>
+    <SolidColorBrush x:Key="AppInputBgBrush"      Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="AppInputBorderBrush"  Color="#555555"/>
+    <SolidColorBrush x:Key="AppHoverBrush"        Color="#3E3E42"/>
+    <SolidColorBrush x:Key="AppSelectionBrush"    Color="#264F78"/>
+    <SolidColorBrush x:Key="AccentBrush"          Color="#0078D4"/>
+
+    <!-- Tab state indicator colors -->
+    <SolidColorBrush x:Key="TabConnectedFgBrush"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="TabConnectingFgBrush"   Color="#FFD700"/>
+    <SolidColorBrush x:Key="TabErrorFgBrush"        Color="#FF6B6B"/>
+    <SolidColorBrush x:Key="TabDisconnectedFgBrush" Color="#999999"/>
+
+    <!-- Legacy keys kept for any direct references -->
+    <SolidColorBrush x:Key="BackgroundBrush"  Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="PanelBrush"       Color="#252526"/>
+    <SolidColorBrush x:Key="ForegroundBrush"  Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="TabActiveBrush"   Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="TabInactiveBrush" Color="#2D2D30"/>
+
+</ResourceDictionary>

@@ -6,7 +6,7 @@
         Title="Windows Terminal" Height="700" Width="1100"
         MinHeight="400" MinWidth="600"
         Icon="Assets/app.ico"
-        Background="#1E1E1E"
+        Background="{DynamicResource AppBgBrush}"
         WindowState="Normal">
 
     <Window.Resources>
@@ -14,13 +14,13 @@
 
         <!-- Tab header button -->
         <Style x:Key="TabHeaderButton" TargetType="Button">
-            <Setter Property="Background" Value="#2D2D30"/>
-            <Setter Property="Foreground" Value="#999999"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Background"      Value="{DynamicResource AppPanelBrush}"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AppSubtleFgBrush}"/>
+            <Setter Property="BorderBrush"     Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,0,8,0"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding"         Value="12,0,8,0"/>
+            <Setter Property="Height"          Value="34"/>
+            <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -31,7 +31,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#3E3E42"/>
+                                <Setter Property="Background" Value="{DynamicResource AppHoverBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -41,20 +41,20 @@
 
         <!-- Active tab header -->
         <Style x:Key="ActiveTabHeaderButton" TargetType="Button" BasedOn="{StaticResource TabHeaderButton}">
-            <Setter Property="Background" Value="#1E1E1E"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource AppBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppFgBrush}"/>
         </Style>
 
         <!-- Quick command button -->
         <Style x:Key="QuickCmdButton" TargetType="Button">
-            <Setter Property="Background" Value="#3C3C3C"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Background"      Value="{DynamicResource AppInputBgBrush}"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AppFgBrush}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AppInputBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,3"/>
-            <Setter Property="Margin" Value="2,2"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding"         Value="10,3"/>
+            <Setter Property="Margin"          Value="2,2"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -67,7 +67,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#0078D4"/>
+                                <Setter Property="Background"  Value="#0078D4"/>
                                 <Setter Property="BorderBrush" Value="#0078D4"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
@@ -81,14 +81,14 @@
 
         <!-- Group filter button (inactive) -->
         <Style x:Key="GroupFilterButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#999999"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AppSubtleFgBrush}"/>
+            <Setter Property="BorderBrush"     Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,2"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding"         Value="8,2"/>
+            <Setter Property="Margin"          Value="2,1"/>
+            <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -101,8 +101,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#3E3E42"/>
-                                <Setter Property="Foreground" Value="#CCCCCC"/>
+                                <Setter Property="Background" Value="{DynamicResource AppHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AppFgBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -112,8 +112,8 @@
 
         <!-- Group filter button (active/selected) -->
         <Style x:Key="ActiveGroupFilterButton" TargetType="Button" BasedOn="{StaticResource GroupFilterButton}">
-            <Setter Property="Background" Value="#0078D4"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Background"  Value="#0078D4"/>
+            <Setter Property="Foreground"  Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="#0078D4"/>
         </Style>
     </Window.Resources>
@@ -128,9 +128,11 @@
         </Grid.RowDefinitions>
 
         <!-- ═══ Toolbar ═══ -->
-        <Border Grid.Row="0" Background="#2D2D30" BorderBrush="#3C3C3C" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource AppPanelBrush}"
+                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1">
             <DockPanel Margin="8,0">
-                <TextBlock Text="⚡ WinTerminal" Foreground="#CCCCCC" FontWeight="SemiBold"
+                <TextBlock Text="⚡ WinTerminal" Foreground="{DynamicResource AppFgBrush}"
+                           FontWeight="SemiBold"
                            VerticalAlignment="Center" Margin="0,0,20,0" DockPanel.Dock="Left"/>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                     <Button Content="＋ 串口" Style="{StaticResource DarkButton}"
@@ -142,6 +144,10 @@
                             DockPanel.Dock="Right">
                     <Button Content="保存日志" Style="{StaticResource DarkButton}" Padding="8,4"
                             Click="BtnSaveLog_Click" Margin="0,0,6,0"/>
+                    <Button x:Name="BtnToggleTheme" Content="☀"
+                            Style="{StaticResource DarkButton}" Padding="8,4"
+                            Click="BtnToggleTheme_Click" Margin="0,0,6,0"
+                            ToolTip="切换亮色/暗色主题"/>
                     <Button x:Name="BtnToggleQuickBar" Content="快捷栏 ▾"
                             Style="{StaticResource DarkButton}" Padding="8,4"
                             Click="BtnToggleQuickBar_Click"/>
@@ -150,7 +156,8 @@
         </Border>
 
         <!-- ═══ Tab strip ═══ -->
-        <Border Grid.Row="1" Background="#2D2D30" BorderBrush="#3C3C3C" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="{DynamicResource AppPanelBrush}"
+                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                               DockPanel.Dock="Left" x:Name="TabScrollViewer">
@@ -160,16 +167,17 @@
         </Border>
 
         <!-- ═══ Terminal area ═══ -->
-        <Grid Grid.Row="2" x:Name="TerminalArea" Background="#1E1E1E">
+        <Grid Grid.Row="2" x:Name="TerminalArea" Background="{DynamicResource AppBgBrush}">
             <TextBlock x:Name="NoTabHint"
                        Text="点击「＋ 串口」或「＋ SSH」新建连接"
-                       Foreground="#555555" FontSize="16"
+                       Foreground="{DynamicResource AppDimFgBrush}" FontSize="16"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
 
         <!-- ═══ Quick command bar (2 rows: group filter + commands) ═══ -->
         <Border Grid.Row="3" x:Name="QuickCommandBar"
-                Background="#252526" BorderBrush="#3C3C3C" BorderThickness="0,1,0,0"
+                Background="{DynamicResource AppPanel2Brush}"
+                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0"
                 MinHeight="52" MaxHeight="108">
             <StackPanel Margin="6,2,6,2">
 
@@ -181,7 +189,7 @@
                             ToolTip="添加快捷指令" VerticalAlignment="Center" Margin="4,0,0,0"
                             FontSize="13" Padding="0"/>
                     <TextBlock DockPanel.Dock="Left" Text="分组："
-                               Foreground="#555555" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AppDimFgBrush}" VerticalAlignment="Center"
                                FontSize="11" Margin="0,0,4,0"/>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <!-- Group buttons generated in code-behind -->
@@ -192,7 +200,7 @@
                 <!-- Row 2: command buttons for the selected group -->
                 <DockPanel Height="30">
                     <TextBlock DockPanel.Dock="Left" Text="指令："
-                               Foreground="#555555" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AppDimFgBrush}" VerticalAlignment="Center"
                                FontSize="11" Margin="0,0,4,0"/>
                     <!-- Container clips overflow; StackPanel filled by code-behind -->
                     <Grid x:Name="QuickCmdContainerGrid" ClipToBounds="True"

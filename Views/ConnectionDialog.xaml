@@ -4,27 +4,27 @@
         Title="新建连接" Width="440" Height="530"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanMinimize"
-        Background="#252526">
+        Background="{DynamicResource AppPanel2Brush}">
 
     <Window.Resources>
         <Style TargetType="TextBlock" BasedOn="{StaticResource DarkLabel}"/>
         <Style TargetType="TextBox"   BasedOn="{StaticResource DarkTextBox}"/>
         <Style TargetType="ComboBox"  BasedOn="{StaticResource DarkComboBox}"/>
         <Style TargetType="PasswordBox">
-            <Setter Property="Background" Value="#3C3C3C"/>
-            <Setter Property="Foreground" Value="#F0F0F0"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Background"      Value="{DynamicResource AppInputBgBrush}"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AppFgBrush}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AppInputBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="CaretBrush" Value="#F0F0F0"/>
+            <Setter Property="Padding"         Value="6,4"/>
+            <Setter Property="CaretBrush"      Value="{DynamicResource AppFgBrush}"/>
         </Style>
         <Style TargetType="RadioButton">
-            <Setter Property="Foreground" Value="#F0F0F0"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppFgBrush}"/>
+            <Setter Property="Cursor"     Value="Hand"/>
         </Style>
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#F0F0F0"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppFgBrush}"/>
+            <Setter Property="Cursor"     Value="Hand"/>
         </Style>
     </Window.Resources>
 
@@ -42,7 +42,7 @@
             <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="历史连接" DockPanel.Dock="Left"/>
                 <TextBlock x:Name="TxtHistoryHint" Text="（无历史记录）"
-                           Foreground="#555555" FontSize="11"
+                           Foreground="{DynamicResource AppDimFgBrush}" FontSize="11"
                            DockPanel.Dock="Right" VerticalAlignment="Bottom"
                            Margin="0,0,0,1" Visibility="Collapsed"/>
             </DockPanel>
@@ -54,7 +54,7 @@
                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
                                        Margin="0,0,10,0"/>
                             <TextBlock Text="{Binding DisplaySummary}"
-                                       Foreground="#AAAAAA" FontSize="11"
+                                       Foreground="{DynamicResource AppSubtleFgBrush}" FontSize="11"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                     </DataTemplate>
@@ -183,7 +183,8 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="TxtKeyPath" IsEnabled="False" Background="#2A2A2A"/>
+                <TextBox x:Name="TxtKeyPath" IsEnabled="False"
+                         Background="{DynamicResource AppInputBgBrush}"/>
                 <Button Grid.Column="1" Content="浏览" Margin="6,0,0,0"
                         Style="{StaticResource DarkButton}" IsEnabled="False"
                         x:Name="BtnBrowseKey" Click="BtnBrowseKey_Click"/>

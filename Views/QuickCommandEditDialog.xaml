@@ -4,7 +4,7 @@
         Title="编辑快捷指令" Width="380" Height="360"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanMinimize"
-        Background="#252526">
+        Background="{DynamicResource AppPanel2Brush}">
 
     <Window.Resources>
         <Style TargetType="TextBlock" BasedOn="{StaticResource DarkLabel}"/>
@@ -38,7 +38,7 @@
         </StackPanel>
 
         <CheckBox Grid.Row="3" x:Name="ChkNewLine" Content="发送后自动换行 (\n)"
-                  Foreground="#F0F0F0" IsChecked="True" Margin="0,0,0,10"/>
+                  Foreground="{DynamicResource AppFgBrush}" IsChecked="True" Margin="0,0,0,10"/>
 
         <DockPanel Grid.Row="5" Margin="0,10,0,0">
             <Button Content="取消" DockPanel.Dock="Right" Width="80"

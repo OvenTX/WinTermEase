@@ -54,6 +54,9 @@ public partial class MainWindow : Window
         RefreshQuickCommandButtons();
 
         NoTabHint.Visibility = Visibility.Visible;
+
+        // Sync toggle button icon with the current theme
+        BtnToggleTheme.Content = _vm.Config.Theme == "light" ? "🌙" : "☀";
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -191,10 +194,10 @@ public partial class MainWindow : Window
                 Dispatcher.Invoke(() =>
                     label.Foreground = tabVm.State switch
                     {
-                        TabState.Connected   => Brushes.White,
-                        TabState.Connecting  => Brushes.Yellow,
-                        TabState.Error       => Brushes.OrangeRed,
-                        _                    => new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99))
+                        TabState.Connected   => (SolidColorBrush)Application.Current.Resources["TabConnectedFgBrush"],
+                        TabState.Connecting  => (SolidColorBrush)Application.Current.Resources["TabConnectingFgBrush"],
+                        TabState.Error       => (SolidColorBrush)Application.Current.Resources["TabErrorFgBrush"],
+                        _                    => (SolidColorBrush)Application.Current.Resources["TabDisconnectedFgBrush"]
                     });
         };
 
@@ -205,11 +208,11 @@ public partial class MainWindow : Window
             Padding = new Thickness(0),
             Background = Brushes.Transparent,
             BorderBrush = Brushes.Transparent,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
             Cursor = System.Windows.Input.Cursors.Hand,
             FontSize = 10,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        closeBtn.SetResourceReference(Button.ForegroundProperty, "AppSubtleFgBrush");
         closeBtn.Click += (s, e) => { e.Handled = true; CloseTab(tabVm); };
 
         var headerContent = new StackPanel { Orientation = Orientation.Horizontal };
@@ -491,10 +494,10 @@ public partial class MainWindow : Window
         {
             Child = new Border
             {
-                Background    = new SolidColorBrush(Color.FromRgb(0x2D, 0x2D, 0x30)),
-                BorderBrush   = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                Background      = (SolidColorBrush)Application.Current.Resources["AppPanelBrush"],
+                BorderBrush     = (SolidColorBrush)Application.Current.Resources["AppInputBorderBrush"],
                 BorderThickness = new Thickness(1),
-                CornerRadius  = new CornerRadius(4),
+                CornerRadius    = new CornerRadius(4),
                 Child = new ScrollViewer
                 {
                     MaxHeight = 280,
@@ -571,6 +574,19 @@ public partial class MainWindow : Window
         {
             File.WriteAllText(dlg.FileName, content, Encoding.UTF8);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // THEME TOGGLE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
+    {
+        var newTheme = _vm.Config.Theme == "light" ? "dark" : "light";
+        _vm.Config.Theme = newTheme;
+        App.ApplyTheme(newTheme);
+        BtnToggleTheme.Content = newTheme == "light" ? "🌙" : "☀";
+        _vm.SaveConfig();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
