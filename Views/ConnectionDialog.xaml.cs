@@ -1,10 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
-using WindowsTerminal.Models;
-using WindowsTerminal.Services;
+using WinTermEase.Models;
+using WinTermEase.Services;
 
-namespace WindowsTerminal.Views;
+namespace WinTermEase.Views;
 
 public partial class ConnectionDialog : Window
 {

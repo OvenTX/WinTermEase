@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Windows.Data;
 
-namespace WindowsTerminal.Converters;
+namespace WinTermEase.Converters;
 
 /// <summary>Converts a command string to a human-readable form for tooltips (shows escape sequences).</summary>
 [ValueConversion(typeof(string), typeof(string))]

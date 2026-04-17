@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.IO.Ports;
 using System.Text;
-using WindowsTerminal.Models;
+using WinTermEase.Models;
 
-namespace WindowsTerminal.Services;
+namespace WinTermEase.Services;
 
 /// <summary>
 /// 高性能串口服务：独立读取线程 + 双缓冲队列 + 16ms 批量刷新到终端

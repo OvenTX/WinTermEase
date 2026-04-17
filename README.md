@@ -54,7 +54,7 @@ git clone https://github.com/OvenTX/WinTermEase.git
 cd WinTermEase
 dotnet restore
 dotnet build
-dotnet run --project WindowsTerminal.csproj
+dotnet run --project WinTermEase.csproj
 ```
 
 ## 使用方式
@@ -86,7 +86,7 @@ dotnet run --project WindowsTerminal.csproj
 应用会把配置保存在：
 
 ```text
-%AppData%\WindowsTerminal\config.json
+%AppData%\WinTermEase\config.json
 ```
 
 当前支持持久化的内容包括：

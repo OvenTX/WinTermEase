@@ -1,7 +1,7 @@
 using System.Windows;
-using WindowsTerminal.Services;
+using WinTermEase.Services;
 
-namespace WindowsTerminal;
+namespace WinTermEase;
 
 public partial class App : Application
 {

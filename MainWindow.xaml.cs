@@ -8,12 +8,12 @@ using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using Microsoft.Win32;
-using WindowsTerminal.Converters;
-using WindowsTerminal.Models;
-using WindowsTerminal.ViewModels;
-using WindowsTerminal.Views;
+using WinTermEase.Converters;
+using WinTermEase.Models;
+using WinTermEase.ViewModels;
+using WinTermEase.Views;
 
-namespace WindowsTerminal;
+namespace WinTermEase;
 
 public partial class MainWindow : Window
 {
@@ -78,7 +78,7 @@ public partial class MainWindow : Window
         {
             var env = await CoreWebView2Environment.CreateAsync(null,
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                             "WindowsTerminal", "WebView2Cache"));
+                             "WinTermEase", "WebView2Cache"));
             await wv.EnsureCoreWebView2Async(env);
         }
         catch (Exception ex)

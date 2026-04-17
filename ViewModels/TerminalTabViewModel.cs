@@ -3,10 +3,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
-using WindowsTerminal.Models;
-using WindowsTerminal.Services;
+using WinTermEase.Models;
+using WinTermEase.Services;
 
-namespace WindowsTerminal.ViewModels;
+namespace WinTermEase.ViewModels;
 
 public enum TabState { Disconnected, Connecting, Connected, Error }
 

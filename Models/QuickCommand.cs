@@ -1,4 +1,4 @@
-namespace WindowsTerminal.Models;
+namespace WinTermEase.Models;
 
 public class QuickCommand
 {

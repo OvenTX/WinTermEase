@@ -4,8 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <RootNamespace>WindowsTerminal</RootNamespace>
-    <AssemblyName>WindowsTerminal</AssemblyName>
+    <RootNamespace>WinTermEase</RootNamespace>
+    <AssemblyName>WinTermEase</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

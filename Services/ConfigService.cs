@@ -1,14 +1,17 @@
 using System.IO;
 using System.Text.Json;
-using WindowsTerminal.Models;
+using WinTermEase.Models;
 
-namespace WindowsTerminal.Services;
+namespace WinTermEase.Services;
 
 public class ConfigService
 {
     private static readonly string ConfigDir =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WinTermEase");
+    private static readonly string LegacyConfigDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WindowsTerminal");
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
+    private static readonly string LegacyConfigPath = Path.Combine(LegacyConfigDir, "config.json");
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -20,8 +23,13 @@ public class ConfigService
     {
         try
         {
-            if (!File.Exists(ConfigPath)) return CreateDefault();
-            var json = File.ReadAllText(ConfigPath);
+            var path = File.Exists(ConfigPath)
+                ? ConfigPath
+                : File.Exists(LegacyConfigPath)
+                    ? LegacyConfigPath
+                    : null;
+            if (path == null) return CreateDefault();
+            var json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? CreateDefault();
         }
         catch

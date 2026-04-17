@@ -1,4 +1,4 @@
-<Window x:Class="WindowsTerminal.Views.ConnectionDialog"
+<Window x:Class="WinTermEase.Views.ConnectionDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="新建连接" Width="440" Height="530"

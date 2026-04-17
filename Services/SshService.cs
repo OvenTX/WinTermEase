@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Renci.SshNet;
-using WindowsTerminal.Models;
+using WinTermEase.Models;
 
-namespace WindowsTerminal.Services;
+namespace WinTermEase.Services;
 
 /// <summary>
 /// SSH 服务：SSH.NET ShellStream + 独立读取线程 + 16ms 批量刷新

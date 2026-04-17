@@ -3,10 +3,10 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
-using WindowsTerminal.Models;
-using WindowsTerminal.Services;
+using WinTermEase.Models;
+using WinTermEase.Services;
 
-namespace WindowsTerminal.ViewModels;
+namespace WinTermEase.ViewModels;
 
 public class MainViewModel : INotifyPropertyChanged
 {

@@ -1,7 +1,7 @@
 using System.Windows;
-using WindowsTerminal.Models;
+using WinTermEase.Models;
 
-namespace WindowsTerminal.Views;
+namespace WinTermEase.Views;
 
 public partial class QuickCommandEditDialog : Window
 {

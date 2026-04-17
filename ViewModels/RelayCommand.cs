@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace WindowsTerminal.ViewModels;
+namespace WinTermEase.ViewModels;
 
 public class RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null) : ICommand
 {
