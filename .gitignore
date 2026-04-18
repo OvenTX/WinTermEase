@@ -1,0 +1,18 @@
+# Build outputs
+bin/
+obj/
+
+# IDE and user-specific files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.rsuser
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Test results
+TestResults/
