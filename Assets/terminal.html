@@ -14,6 +14,33 @@
     /* 必须给 #terminal 显式高度：fit 插件读它的高度计算行数，
        不设则高度被 xterm 内容自身撑开，行数永远锁死在初始值 */
     #terminal { width: 100%; height: 100%; }
+    /* 浮层需要相对容器绝对定位 */
+    #terminal-container { position: relative; }
+    /* 命令历史补全浮层 */
+    #cmd-history-popup {
+      position: absolute;
+      background: #2d2d2d;
+      border: 1px solid #555;
+      border-radius: 4px;
+      z-index: 10;
+      min-width: 200px;
+      max-width: 90%;
+      max-height: 8em; /* 约 5 项 */
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    #cmd-history-popup .item {
+      padding: 2px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #cccccc;
+    }
+    #cmd-history-popup .item.selected {
+      background: #0078d4;
+      color: #ffffff;
+    }
     /* Override xterm default font metrics to avoid blur */
     .xterm { height: 100%; }
     .xterm-viewport { overflow-y: scroll !important; }
@@ -95,8 +122,228 @@
 
     // ─── User input → C# host ────────────────────────────────────────────────
     term.onData(data => {
-      postToHost({ type: 'input', data: data });
+      handleInput(data);
     });
+
+    // ─── Command history autocomplete ───────────────────────────────────────
+    // C# 下发的历史记录（按连接类型共享，最新在最后）
+    window.commandHistory = [];
+
+    let currentInput = '';      // 当前行已输入内容（追踪用户击键，行内编辑后可能失准）
+    let promptPrefix = null;    // 开始输入时光标前的文本（提示符），用于回车时从缓冲区剥离出完整命令
+    let popupEl = null;
+    let popupItems = [];        // 当前匹配项（最多 5 条，最新优先）
+    let popupIndex = -1;        // 焦点项索引，-1 = 无焦点（默认焦点留在终端，按 ↓ 才移入浮层）
+    let popupOpen = false;
+
+    function handleInput(data) {
+      // 浮层打开时的键盘处理
+      if (popupOpen) {
+        // ↓：未聚焦时按下才把焦点移入浮层（选中第 0 项）；已聚焦则向下循环移动
+        if (data === '\x1b[B') {
+          popupIndex = popupIndex < 0 ? 0 : (popupIndex + 1) % popupItems.length;
+          renderPopup();
+          return;
+        }
+        // ↑：仅在浮层已聚焦时拦截（向上循环移动）；
+        // 未聚焦时透传给 shell（保留 bash 历史导航），本地 buffer 失准，重置并关闭浮层
+        if (data === '\x1b[A') {
+          if (popupIndex >= 0) {
+            popupIndex = (popupIndex - 1 + popupItems.length) % popupItems.length;
+            renderPopup();
+            return;
+          }
+          currentInput = '';
+          closePopup();
+          postToHost({ type: 'input', data });
+          return;
+        }
+        // 回车：仅在浮层已聚焦时拦截做补全；未聚焦时走正常流程（上报 + 透传执行）
+        if (data === '\r' && popupIndex >= 0) { acceptCompletion(); return; }
+        if (data === '\x1b') { closePopup(); return; }
+      }
+
+      // 浮层关闭时 ↑↓ 透传给 shell（保留原生历史导航）；不触碰浮层焦点，
+      // 本地 buffer 失准，重置
+      if (data === '\x1b[A' || data === '\x1b[B') {
+        currentInput = '';
+        closePopup();
+        postToHost({ type: 'input', data });
+        return;
+      }
+
+      // 其他转义序列（← → Home End 等）：透传，不修改 buffer；浮层内容已失准，关闭
+      if (data.startsWith('\x1b')) {
+        closePopup();
+        postToHost({ type: 'input', data });
+        return;
+      }
+
+      // 逐码点处理可打印字符 / 退格 / 回车 / 控制字符（支持粘贴的多字符数据）
+      for (const ch of data) {
+        const code = ch.codePointAt(0);
+        if (ch === '\r') {
+          // 回车：从终端缓冲区提取完整命令（含 Tab 补全 / shell 历史召回的部分）上报，
+          // 而不是只上报追踪到的键入字符
+          const cmd = extractCommandFromBuffer();
+          if (cmd.length > 0)
+            postToHost({ type: 'command', text: cmd });
+          currentInput = '';
+          promptPrefix = null;   // 新提示符可能与旧的不同（如 cd 后），下次输入时重新捕获
+          closePopup();
+        } else if (ch === '\x03' || ch === '\x15') {
+          // Ctrl+C / Ctrl+U：清空 buffer，关闭浮层
+          currentInput = '';
+          if (ch === '\x03') promptPrefix = null;  // ^C 后是新提示符行
+          closePopup();
+        } else if (ch === '\x7f' || ch === '\b') {
+          // 退格：按码点删除末尾（正确处理中文等 BMP 外字符）
+          currentInput = Array.from(currentInput).slice(0, -1).join('');
+          updatePopup();
+        } else if (code >= 0x20) {
+          // 开始输入时记录光标前的提示符，供回车时从缓冲区提取完整命令
+          if (currentInput.length === 0 && promptPrefix === null)
+            promptPrefix = getTextBeforeCursor();
+          currentInput += ch;
+          updatePopup();
+        }
+      }
+
+      // 所有输入始终透传，保证 shell 行为正常
+      postToHost({ type: 'input', data });
+    }
+
+    // 读取光标所在逻辑行的完整可见文本（折行会自动拼接回一行）
+    function getLogicalLineText() {
+      const buf = term.buffer.active;
+      const y = buf.baseY + buf.cursorY;
+      if (!buf.getLine(y)) return '';
+      // 折行时向前找到逻辑行的第一行（isWrapped 表示本行是上一行的延续）
+      let startY = y;
+      while (startY > 0 && buf.getLine(startY).isWrapped) startY--;
+      let text = '';
+      for (let i = startY; i < y; i++)
+        text += buf.getLine(i).translateToString(false);
+      text += buf.getLine(y).translateToString(true);   // 末行去掉尾部空格
+      return text;
+    }
+
+    // 读取光标前的文本（开始输入时即提示符）
+    function getTextBeforeCursor() {
+      const buf = term.buffer.active;
+      const y = buf.baseY + buf.cursorY;
+      if (!buf.getLine(y)) return '';
+      let startY = y;
+      while (startY > 0 && buf.getLine(startY).isWrapped) startY--;
+      let text = '';
+      for (let i = startY; i < y; i++)
+        text += buf.getLine(i).translateToString(false);
+      text += buf.getLine(y).translateToString(false).slice(0, buf.cursorX);
+      return text;
+    }
+
+    // 回车时从终端缓冲区提取完整命令：整行文本减去捕获的提示符；
+    // 提取失败（提示符对不上）时退回按键追踪的 currentInput
+    function extractCommandFromBuffer() {
+      try {
+        const full = getLogicalLineText();
+        if (promptPrefix !== null && full.startsWith(promptPrefix))
+          return full.slice(promptPrefix.length).trim();
+      } catch (e) { /* buffer 不可用时忽略 */ }
+      return currentInput;
+    }
+
+    function updatePopup() {
+      if (!currentInput) { closePopup(); return; }
+      // 倒序（最新优先）匹配前缀，去重；全匹配的命令也显示，并作为第一条
+      const seen = new Set();
+      const matches = [];
+      let exact = null;
+      const hist = window.commandHistory;
+      for (let i = hist.length - 1; i >= 0; i--) {
+        const h = hist[i];
+        if (!h.startsWith(currentInput) || seen.has(h)) continue;
+        seen.add(h);
+        if (h === currentInput) { exact = h; continue; }
+        matches.push(h);
+      }
+      if (exact !== null) matches.unshift(exact);
+      if (matches.length > 5) matches.length = 5;
+      if (matches.length === 0) { closePopup(); return; }
+      popupItems = matches;
+      // 默认不聚焦（焦点留在终端）；已聚焦时保持焦点并钳制在有效范围内
+      popupIndex = popupIndex >= 0 ? Math.min(popupIndex, matches.length - 1) : -1;
+      renderPopup();
+    }
+
+    function renderPopup() {
+      if (!popupEl) {
+        popupEl = document.createElement('div');
+        popupEl.id = 'cmd-history-popup';
+        document.getElementById('terminal-container').appendChild(popupEl);
+      }
+      // 字号 / 字体与终端保持一致
+      popupEl.style.fontFamily = term.options.fontFamily;
+      popupEl.style.fontSize = term.options.fontSize + 'px';
+      popupEl.innerHTML = '';
+      popupItems.forEach((text, i) => {
+        const div = document.createElement('div');
+        div.className = 'item' + (i === popupIndex ? ' selected' : '');
+        div.textContent = text;
+        popupEl.appendChild(div);
+      });
+      popupEl.style.display = 'block';
+      popupOpen = true;
+      positionPopup();
+    }
+
+    function positionPopup() {
+      const container = document.getElementById('terminal-container');
+      const cRect = container.getBoundingClientRect();
+      const cursorEl = term.element && term.element.querySelector('.xterm-cursor');
+      let x, y;
+      if (cursorEl) {
+        const r = cursorEl.getBoundingClientRect();
+        x = r.left - cRect.left;
+        y = r.bottom - cRect.top;   // 光标下一行
+      } else {
+        // fallback：按 buffer 光标坐标 × 估算字符尺寸
+        const buf = term.buffer.active;
+        const cellH = term.options.fontSize * term.options.lineHeight;
+        const cellW = term.options.fontSize * 0.6;
+        x = buf.cursorX * cellW + 4;
+        y = (buf.cursorY + 1) * cellH + 4;
+      }
+      popupEl.style.left = x + 'px';
+      popupEl.style.top = y + 'px';
+      // 底部空间不足时翻到光标上方；右侧越界时左移
+      const pRect = popupEl.getBoundingClientRect();
+      if (pRect.bottom > cRect.bottom && cursorEl) {
+        const r = cursorEl.getBoundingClientRect();
+        popupEl.style.top = (r.top - cRect.top - pRect.height) + 'px';
+      }
+      if (pRect.right > cRect.right) {
+        popupEl.style.left = Math.max(0, cRect.width - pRect.width) + 'px';
+      }
+    }
+
+    function acceptCompletion() {
+      // 回车：仅补全选中项剩余部分到光标位置，不执行（用户再按回车才执行）
+      const sel = popupItems[popupIndex];
+      if (sel) {
+        const rest = sel.slice(currentInput.length);
+        if (rest) postToHost({ type: 'input', data: rest });
+        currentInput = sel;
+      }
+      closePopup();
+    }
+
+    function closePopup() {
+      if (popupEl) popupEl.style.display = 'none';
+      popupOpen = false;
+      popupItems = [];
+      popupIndex = -1;
+    }
 
     // ─── Select-to-copy: auto-copy selected text ─────────────────────────────
     term.onSelectionChange(() => {
@@ -127,6 +374,9 @@
             break;
           case 'settings':
             applySettings(msg.settings);
+            break;
+          case 'history':
+            window.commandHistory = msg.items || [];
             break;
           case 'search':
             searchAddon.findNext(msg.query, { caseSensitive: false, wholeWord: false });

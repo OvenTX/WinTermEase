@@ -207,6 +207,31 @@ public class MainViewModel : INotifyPropertyChanged
         SaveConfig();
     }
 
+    /// <summary>获取指定 tab 对应连接类型的命令历史（SSH 共享 / 串口共享）</summary>
+    public IReadOnlyList<string> GetCommandHistory(TerminalTabViewModel tab) =>
+        tab.ConnectionType == ConnectionType.Serial
+            ? Config.SerialCommandHistory
+            : Config.SshCommandHistory;
+
+    /// <summary>记录一条命令历史：按连接类型路由，与最近一条相同则跳过，上限 200 条</summary>
+    public void AddCommandHistory(TerminalTabViewModel tab, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        var list = tab.ConnectionType == ConnectionType.Serial
+            ? Config.SerialCommandHistory
+            : Config.SshCommandHistory;
+
+        if (list.Count > 0 && list[^1] == text) return;
+
+        list.Add(text);
+        if (list.Count > 200)
+            list.RemoveRange(0, list.Count - 200);
+
+        // 回车频率低，同步保存可接受
+        SaveConfig();
+    }
+
     public void SaveConfig()
     {
         SyncQuickCommandsToConfig();

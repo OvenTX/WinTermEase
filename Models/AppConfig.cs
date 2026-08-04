@@ -8,4 +8,8 @@ public class AppConfig
     public string FontFamily { get; set; } = "Cascadia Code, Consolas, monospace";
     public int FontSize { get; set; } = 14;
     public int ScrollbackLines { get; set; } = 5000;
+
+    // 命令历史（按连接类型分两份，各上限 200 条）
+    public List<string> SshCommandHistory { get; set; } = [];
+    public List<string> SerialCommandHistory { get; set; } = [];
 }

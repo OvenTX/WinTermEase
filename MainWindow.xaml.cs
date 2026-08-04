@@ -179,10 +179,24 @@ public partial class MainWindow : Window
                         });
                         break;
                     case "ready":
-                        // JS 消息监听已注册，下发当前字体设置后再连接
+                        // JS 消息监听已注册，下发当前字体设置和命令历史后再连接
                         SendSettings(wv);
+                        SendCommandHistory(wv, tabVm);
                         if (tabVm.State == TabState.Disconnected)
                             tabVm.Connect();
+                        break;
+                    case "command":
+                        // JS 端回车时上报的命令，记入历史
+                        var cmdText = msg.GetProperty("text").GetString() ?? "";
+                        _vm.AddCommandHistory(tabVm, cmdText);
+                        // 历史已更新，同步下发给所有同类型 tab（SSH/串口各自共享），
+                        // 否则 JS 端缓存仍停留在 ready 时收到的旧版本，后续输入匹配不到新历史
+                        foreach (var tab in _vm.Tabs)
+                        {
+                            if (tab.ConnectionType == tabVm.ConnectionType
+                                && _webViews.TryGetValue(tab.Id, out var w))
+                                SendCommandHistory(w, tab);
+                        }
                         break;
                 }
             }
@@ -701,6 +715,17 @@ public partial class MainWindow : Window
     {
         if (wv.CoreWebView2 != null)
             wv.CoreWebView2.PostWebMessageAsString(BuildSettingsJson());
+    }
+
+    private void SendCommandHistory(WebView2 wv, TerminalTabViewModel tabVm)
+    {
+        if (wv.CoreWebView2 == null) return;
+        var json = JsonSerializer.Serialize(new
+        {
+            type = "history",
+            items = _vm.GetCommandHistory(tabVm),
+        });
+        wv.CoreWebView2.PostWebMessageAsString(json);
     }
 
     private void BroadcastSettings()
