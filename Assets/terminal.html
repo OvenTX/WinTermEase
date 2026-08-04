@@ -11,6 +11,9 @@
       height: 100%;
       padding: 4px;
     }
+    /* 必须给 #terminal 显式高度：fit 插件读它的高度计算行数，
+       不设则高度被 xterm 内容自身撑开，行数永远锁死在初始值 */
+    #terminal { width: 100%; height: 100%; }
     /* Override xterm default font metrics to avoid blur */
     .xterm { height: 100%; }
     .xterm-viewport { overflow-y: scroll !important; }
@@ -144,7 +147,14 @@
       if (s.fontFamily)  term.options.fontFamily  = s.fontFamily;
       if (s.scrollback)  term.options.scrollback  = s.scrollback;
       if (s.theme)       term.options.theme       = s.theme;
-      fitAddon.fit();
+      // 字号/字体变化后，xterm 需要在渲染帧里重新测量字符尺寸；
+      // 立即 fit 会按旧尺寸算出行列（字大行多被截断、字小行少留白）。
+      // 双 rAF 确保越过 xterm 自身的渲染帧。且容器尺寸未变时
+      // ResizeObserver 不会触发，需手动上报 resize。
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fitAddon.fit();
+        postToHost({ type: 'resize', cols: term.cols, rows: term.rows });
+      }));
     }
 
     // ─── Notify host that terminal is ready ──────────────────────────────────

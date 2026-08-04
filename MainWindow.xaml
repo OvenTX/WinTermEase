@@ -139,9 +139,15 @@
                             Command="{Binding NewSerialCommand}" Margin="0,0,6,0" Padding="10,4"/>
                     <Button Content="＋ SSH" Style="{StaticResource DarkButton}"
                             Command="{Binding NewSshCommand}" Padding="10,4"/>
+                    <Button x:Name="BtnHistory" Content="历史 ▾" Style="{StaticResource DarkButton}"
+                            Padding="10,4" Margin="6,0,0,0" Click="BtnHistory_Click"
+                            ToolTip="历史连接"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             DockPanel.Dock="Right">
+                    <Button Content="⚙ 设置" Style="{StaticResource DarkButton}" Padding="8,4"
+                            Click="BtnSettings_Click" Margin="0,0,6,0"
+                            ToolTip="终端字体与字号"/>
                     <Button Content="保存日志" Style="{StaticResource DarkButton}" Padding="8,4"
                             Click="BtnSaveLog_Click" Margin="0,0,6,0"/>
                     <Button x:Name="BtnToggleTheme" Content="☀"

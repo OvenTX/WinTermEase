@@ -96,6 +96,8 @@ public partial class MainWindow : Window
 
         wv.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         wv.CoreWebView2.Settings.IsStatusBarEnabled = false;
+        // 禁用 WebView2 内置缩放（Ctrl+滚轮 / Ctrl +/-），字号统一由设置项控制
+        wv.CoreWebView2.Settings.IsZoomControlEnabled = false;
 
         wv.CoreWebView2.WebMessageReceived += (s, e) =>
         {
@@ -146,6 +148,8 @@ public partial class MainWindow : Window
                         });
                         break;
                     case "ready":
+                        // JS 消息监听已注册，下发当前字体设置后再连接
+                        SendSettings(wv);
                         if (tabVm.State == TabState.Disconnected)
                             tabVm.Connect();
                         break;
@@ -168,7 +172,9 @@ public partial class MainWindow : Window
         };
 
         _webViews[tabVm.Id] = wv;
-        wv.Source = new Uri("https://terminal.local/terminal.html");
+        // 以 terminal.html 的修改时间作为版本号查询串，避免 WebView2 HTTP 缓存提供旧版页面
+        var htmlVer = File.GetLastWriteTimeUtc(Path.Combine(AssetsDir, "terminal.html")).Ticks;
+        wv.Source = new Uri($"https://terminal.local/terminal.html?v={htmlVer}");
         CreateTabHeader(tabVm);
         ActivateTab(tabVm);
     }
@@ -573,6 +579,114 @@ public partial class MainWindow : Window
         if (dlg.ShowDialog(this) == true)
         {
             File.WriteAllText(dlg.FileName, content, Encoding.UTF8);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HISTORY CONNECTIONS DROPDOWN
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void BtnHistory_Click(object sender, RoutedEventArgs e)
+    {
+        var cm = new ContextMenu();
+
+        var profiles = _vm.Config.ConnectionProfiles
+            .OrderByDescending(p => p.LastConnectedAt ?? DateTimeOffset.MinValue)
+            .ToList();
+
+        if (profiles.Count == 0)
+        {
+            cm.Items.Add(new MenuItem { Header = "（暂无历史连接）", IsEnabled = false });
+        }
+        else
+        {
+            foreach (var profile in profiles)
+            {
+                var p = profile;
+                var icon = p.Type == ConnectionType.Serial ? "⚡" : "🔒";
+
+                // ✕ 删除按钮：仅删除历史，不触发连接
+                var btnDelete = new Button
+                {
+                    Content = "✕",
+                    Width = 22, Height = 22,
+                    Padding = new Thickness(0),
+                    Margin = new Thickness(12, 0, 0, 0),
+                    Background = Brushes.Transparent,
+                    BorderBrush = Brushes.Transparent,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    ToolTip = "从历史中删除",
+                };
+                btnDelete.SetResourceReference(Button.ForegroundProperty, "AppSubtleFgBrush");
+                btnDelete.Click += (s, ev) =>
+                {
+                    ev.Handled = true;
+                    _vm.DeleteConnectionProfile(p);
+                    cm.IsOpen = false;
+                };
+
+                var header = new DockPanel { MinWidth = 260 };
+                header.Children.Add(btnDelete);
+                DockPanel.SetDock(btnDelete, Dock.Right);
+                header.Children.Add(new TextBlock
+                {
+                    Text = $"{icon} {p.Name}   {p.DisplaySummary}",
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+
+                var item = new MenuItem { Header = header, ToolTip = "点击连接" };
+                item.Click += (s, ev) => OpenNewTab(p);
+                cm.Items.Add(item);
+            }
+        }
+
+        cm.PlacementTarget = BtnHistory;
+        cm.Placement = PlacementMode.Bottom;
+        cm.IsOpen = true;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SETTINGS (font family / size → xterm.js)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private string BuildSettingsJson()
+    {
+        // 必须序列化而非字符串插值：fontFamily 可能含逗号/引号
+        return JsonSerializer.Serialize(new
+        {
+            type = "settings",
+            settings = new
+            {
+                fontFamily = _vm.Config.FontFamily,
+                fontSize   = _vm.Config.FontSize,
+                scrollback = _vm.Config.ScrollbackLines,
+            }
+        });
+    }
+
+    private void SendSettings(WebView2 wv)
+    {
+        if (wv.CoreWebView2 != null)
+            wv.CoreWebView2.PostWebMessageAsString(BuildSettingsJson());
+    }
+
+    private void BroadcastSettings()
+    {
+        foreach (var wv in _webViews.Values)
+            SendSettings(wv);
+    }
+
+    private void BtnSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SettingsDialog(_vm.Config) { Owner = this };
+        if (dlg.ShowDialog() == true)
+        {
+            _vm.Config.FontFamily = dlg.FontFamilyText;
+            _vm.Config.FontSize = dlg.FontSizeValue;
+            _vm.SaveConfig();
+            BroadcastSettings();
         }
     }
 

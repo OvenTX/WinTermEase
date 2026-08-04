@@ -199,6 +199,12 @@ public class MainViewModel : INotifyPropertyChanged
         return ["全部", .. groups];
     }
 
+    public void DeleteConnectionProfile(ConnectionProfile profile)
+    {
+        Config.ConnectionProfiles.RemoveAll(p => p.Id == profile.Id);
+        SaveConfig();
+    }
+
     public void SaveConfig()
     {
         SyncQuickCommandsToConfig();
