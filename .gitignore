@@ -14,5 +14,10 @@ obj/
 *.tmp
 *.temp
 
+# Tool / publish artifacts
+.playwright-cli/
+.workbuddy/
+publish/
+
 # Test results
 TestResults/
