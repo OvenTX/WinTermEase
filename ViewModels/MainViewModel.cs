@@ -106,10 +106,12 @@ public class MainViewModel : INotifyPropertyChanged
         tab.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName is nameof(TerminalTabViewModel.RxDisplay)
-                                or nameof(TerminalTabViewModel.TxDisplay))
+                                or nameof(TerminalTabViewModel.TxDisplay)
+                                or nameof(TerminalTabViewModel.StatusText))
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
+                    OnPropertyChanged(nameof(StatusText));
                     OnPropertyChanged(nameof(RxDisplay));
                     OnPropertyChanged(nameof(TxDisplay));
                 });
