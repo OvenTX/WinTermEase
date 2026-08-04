@@ -418,6 +418,10 @@
     window.addEventListener('load', () => {
       postToHost({ type: 'ready', cols: term.cols, rows: term.rows });
     });
+
+    // WebView2 获得键盘焦点时，焦点落在 document.body 上，xterm 的隐藏 textarea
+    // 不会自动聚焦，表现为“还要点一下才能输入”。监听 window focus 主动聚焦终端。
+    window.addEventListener('focus', () => term.focus());
   </script>
 </body>
 </html>

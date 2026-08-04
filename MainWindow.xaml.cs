@@ -182,6 +182,15 @@ public partial class MainWindow : Window
                         // JS 消息监听已注册，下发当前字体设置和命令历史后再连接
                         SendSettings(wv);
                         SendCommandHistory(wv, tabVm);
+                        // 页面就绪后把焦点放进终端。
+                        // OpenNewTab 里的 Focus() 发生在页面加载完成前，焦点进不了网页内容；
+                        // 且从“历史”菜单打开时，菜单关闭会把焦点交还给按钮。
+                        // JS 端的 window focus 监听会把焦点再转给 xterm 的 textarea。
+                        Dispatcher.BeginInvoke(() =>
+                        {
+                            if (_vm.ActiveTab == tabVm)
+                                System.Windows.Input.Keyboard.Focus(wv);
+                        });
                         if (tabVm.State == TabState.Disconnected)
                             tabVm.Connect();
                         break;
