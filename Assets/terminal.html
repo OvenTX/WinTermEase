@@ -76,12 +76,22 @@
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
 
-    // ─── Resize observer ─────────────────────────────────────────────────────
-    const ro = new ResizeObserver(() => {
-      fitAddon.fit();
-      postToHost({ type: 'resize', cols: term.cols, rows: term.rows });
-    });
+    // ─── Resize handling ─────────────────────────────────────────────────────
+    // fit + 上报尺寸；封装为全局函数，便于 C# 端通过 ExecuteScriptAsync 兜底触发
+    function doFit() {
+      try {
+        fitAddon.fit();
+        postToHost({ type: 'resize', cols: term.cols, rows: term.rows });
+      } catch (e) { /* 容器尚未准备好，忽略 */ }
+    }
+    window.fitTerminal = doFit;
+
+    // ResizeObserver：容器尺寸变化时自动 fit（主路径）
+    const ro = new ResizeObserver(doFit);
     ro.observe(document.getElementById('terminal-container'));
+
+    // window resize 作为补充：部分场景下 ResizeObserver 不可靠
+    window.addEventListener('resize', doFit);
 
     // ─── User input → C# host ────────────────────────────────────────────────
     term.onData(data => {
@@ -151,10 +161,7 @@
       // 立即 fit 会按旧尺寸算出行列（字大行多被截断、字小行少留白）。
       // 双 rAF 确保越过 xterm 自身的渲染帧。且容器尺寸未变时
       // ResizeObserver 不会触发，需手动上报 resize。
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        fitAddon.fit();
-        postToHost({ type: 'resize', cols: term.cols, rows: term.rows });
-      }));
+      requestAnimationFrame(() => requestAnimationFrame(doFit));
     }
 
     // ─── Notify host that terminal is ready ──────────────────────────────────

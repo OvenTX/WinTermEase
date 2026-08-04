@@ -57,6 +57,37 @@ public partial class MainWindow : Window
 
         // Sync toggle button icon with the current theme
         BtnToggleTheme.Content = _vm.Config.Theme == "light" ? "🌙" : "☀";
+
+        // 窗口尺寸/状态变化时（最大化、还原、拖动边缘），WPF 会重新布局 TerminalArea。
+        // WebView2 内的 ResizeObserver 在这些场景下不一定可靠触发，故由 C# 端兜底，
+        // 主动调用 JS 端 window.fitTerminal() 重新 fit 并上报 cols/rows。
+        TerminalArea.SizeChanged += TerminalArea_SizeChanged;
+        StateChanged += MainWindow_StateChanged;
+    }
+
+    private void TerminalArea_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        // 终端区域尺寸变化时，对每个已初始化的 WebView2 触发一次 fit。
+        // 非活动 tab 的 WebView2 是 Collapsed，fit 会在 JS 端被 try/catch 忽略。
+        foreach (var (id, wv) in _webViews)
+        {
+            if (wv.CoreWebView2 != null)
+                _ = wv.CoreWebView2.ExecuteScriptAsync("window.fitTerminal && window.fitTerminal()");
+        }
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        // 最大化/还原切换时，WPF 布局更新和 HWND 同步可能有延迟；
+        // 用 Dispatcher 延后一帧触发 fit，确保 WebView2 已应用新尺寸。
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            foreach (var (id, wv) in _webViews)
+            {
+                if (wv.CoreWebView2 != null)
+                    _ = wv.CoreWebView2.ExecuteScriptAsync("window.fitTerminal && window.fitTerminal()");
+            }
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

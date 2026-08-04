@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text;
 using Renci.SshNet;
 using WinTermEase.Models;
@@ -101,15 +102,32 @@ public class SshService : IDisposable
     }
 
     /// <summary>
-    /// 通知服务端终端尺寸变化（SSH "window-change" 请求）
+    /// 通知服务端终端尺寸变化（SSH "window-change" 请求）。
+    /// SSH.NET 的 ShellStream 未公开 window-change 接口，需通过反射取其内部
+    /// channel，调用 SendWindowChangeRequest 真正下发到服务端。
     /// </summary>
     public void Resize(int cols, int rows)
     {
         _cols = cols;
         _rows = rows;
-        // SSH.NET 的 ShellStream 不直接暴露 window-change，
-        // 需要通过底层 Channel 发送。此处预留入口，后续可扩展。
-        // 当前 workaround：重建连接（生产环境建议用 Renci.SshNet 内部 API）
+        if (_stream == null) return;
+
+        try
+        {
+            var channelField = typeof(ShellStream).GetField(
+                "_channel", BindingFlags.NonPublic | BindingFlags.Instance);
+            var channel = channelField?.GetValue(_stream);
+            if (channel == null) return;
+
+            var method = channel.GetType().GetMethod(
+                "SendWindowChangeRequest",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            method?.Invoke(channel, [(uint)cols, (uint)rows, 0u, 0u]);
+        }
+        catch
+        {
+            // 反射失败（SSH.NET 内部结构变更）时静默忽略，不影响主流程
+        }
     }
 
     private void ReadLoop()
